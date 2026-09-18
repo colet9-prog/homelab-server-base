@@ -1,0 +1,8 @@
+<network connections='2'>
+  <name>opn-games</name>
+  <uuid>6db35c12-acaf-45c4-b76e-22ec810dd2f4</uuid>
+  <bridge name='virbr11' stp='on' delay='0'/>
+  <mac address='52:54:00:fd:e9:e7'/>
+  <domain name='games.internal' localOnly='yes'/>
+</network>
+

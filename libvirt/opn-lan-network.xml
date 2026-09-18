@@ -1,0 +1,9 @@
+<network connections='1'>
+  <name>opn-lan</name>
+  <uuid>776fdc52-1d08-4264-a1a3-41c1c0ced7e7</uuid>
+  <bridge name='virbr10' stp='on' delay='0'/>
+  <mac address='52:54:00:26:70:44'/>
+  <ip address='192.168.100.254' netmask='255.255.255.0'>
+  </ip>
+</network>
+

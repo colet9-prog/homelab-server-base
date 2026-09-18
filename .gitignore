@@ -1,0 +1,7 @@
+data/
+letsencrypt/
+prometheus-data/
+grafana-data/
+*.key
+*.crt
+*.pem
