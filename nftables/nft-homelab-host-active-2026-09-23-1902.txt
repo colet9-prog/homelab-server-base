@@ -1,0 +1,25 @@
+table inet homelab_host {
+	set lan4 {
+		type ipv4_addr
+		flags interval
+		elements = { 192.168.4.0/22 }
+	}
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iifname "lo" accept
+		ct state { established, related } accept
+		ct state invalid drop
+		ip protocol icmp accept
+		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, echo-request, echo-reply, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+		iifname "tailscale0" accept
+		udp dport 41641 accept
+		iifname "wlp40s0" udp sport 67 udp dport 68 accept
+		ip saddr @lan4 tcp dport { 22, 80, 81, 139, 443, 445, 3000, 3001, 8081, 8096, 9091, 9100, 9177 } accept
+		ip saddr @lan4 udp dport 53 accept
+		ip saddr @lan4 tcp dport 53 accept
+		iifname { "virbr0", "virbr10", "virbr11" } udp dport 67 accept
+		limit rate 5/minute burst 10 packets log prefix "nft-host-drop: "
+		drop
+	}
+}

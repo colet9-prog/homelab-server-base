@@ -1,0 +1,559 @@
+table ip mangle {
+	chain PREROUTING {
+		type filter hook prerouting priority mangle; policy accept;
+		ct state related,established ct mark and 0xff0000 != 0x0 counter packets 31479 bytes 3476169 meta mark set ct mark and 0xff0000
+	}
+
+	chain INPUT {
+		type filter hook input priority mangle; policy accept;
+	}
+
+	chain FORWARD {
+		type filter hook forward priority mangle; policy accept;
+	}
+
+	chain OUTPUT {
+		type route hook output priority mangle; policy accept;
+		ct state new meta mark & 0x00ff0000 != 0x00000000 counter packets 10714 bytes 750894 ct mark set mark and 0xff0000
+	}
+
+	chain POSTROUTING {
+		type filter hook postrouting priority mangle; policy accept;
+		counter packets 25191687 bytes 55678048977 jump LIBVIRT_PRT
+	}
+
+	chain LIBVIRT_PRT {
+		oifname "virbr0" udp dport 68 counter packets 104 bytes 34320 xt target "CHECKSUM"
+		oifname "virbr0" udp dport 68 counter packets 104 bytes 34320 xt target "CHECKSUM"
+	}
+}
+table ip raw {
+	chain PREROUTING {
+		type filter hook prerouting priority raw; policy accept;
+		ip daddr 172.18.0.2 iifname != "br-7ffa61220a44" counter packets 0 bytes 0 drop
+		ip daddr 172.21.0.2 iifname != "br-776625e9ce27" counter packets 0 bytes 0 drop
+		ip daddr 172.19.0.2 iifname != "br-0d3c6559213f" counter packets 0 bytes 0 drop
+		ip daddr 172.19.0.3 iifname != "br-0d3c6559213f" counter packets 0 bytes 0 drop
+		ip daddr 172.19.0.4 iifname != "br-0d3c6559213f" counter packets 0 bytes 0 drop
+		ip daddr 172.20.0.2 iifname != "br-8da586916e3f" counter packets 0 bytes 0 drop
+		ip daddr 172.22.0.2 iifname != "br-ffcfd71949cd" counter packets 0 bytes 0 drop
+	}
+
+	chain OUTPUT {
+		type filter hook output priority raw; policy accept;
+	}
+}
+table ip filter {
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		counter packets 14603872 bytes 173583089569 jump ts-input
+		counter packets 14563655 bytes 173577719990 jump LIBVIRT_INP
+		counter packets 14563390 bytes 173577674885 jump ufw-before-logging-input
+		counter packets 14563390 bytes 173577674885 jump ufw-before-input
+		counter packets 14563390 bytes 173577674885 jump ufw-after-input
+		counter packets 14563390 bytes 173577674885 jump ufw-after-logging-input
+		counter packets 14563390 bytes 173577674885 jump ufw-reject-input
+		counter packets 14563390 bytes 173577674885 jump ufw-track-input
+	}
+
+	chain FORWARD {
+		type filter hook forward priority filter; policy accept;
+		counter packets 11935298 bytes 47686842000 jump ts-forward
+		counter packets 11924591 bytes 47686310947 jump DOCKER-USER
+		counter packets 11924591 bytes 47686310947 jump DOCKER-FORWARD
+		ip daddr 192.168.122.24 tcp dport 25565 counter packets 0 bytes 0 accept
+		ip daddr 192.168.122.24 udp dport 16261-16262 counter packets 0 bytes 0 accept
+		counter packets 714734 bytes 259401919 jump LIBVIRT_FWX
+		counter packets 714734 bytes 259401919 jump LIBVIRT_FWI
+		counter packets 391181 bytes 50756344 jump LIBVIRT_FWO
+		counter packets 7 bytes 1456 jump ufw-before-logging-forward
+		counter packets 7 bytes 1456 jump ufw-before-forward
+		counter packets 7 bytes 1456 jump ufw-after-forward
+		counter packets 7 bytes 1456 jump ufw-after-logging-forward
+		counter packets 7 bytes 1456 jump ufw-reject-forward
+		counter packets 7 bytes 1456 jump ufw-track-forward
+	}
+
+	chain OUTPUT {
+		type filter hook output priority filter; policy accept;
+		counter packets 13252712 bytes 7989855530 jump LIBVIRT_OUT
+		counter packets 13252608 bytes 7989821210 jump ufw-before-logging-output
+		counter packets 13252608 bytes 7989821210 jump ufw-before-output
+		counter packets 13252608 bytes 7989821210 jump ufw-after-output
+		counter packets 13252608 bytes 7989821210 jump ufw-after-logging-output
+		counter packets 13252608 bytes 7989821210 jump ufw-reject-output
+		counter packets 13252608 bytes 7989821210 jump ufw-track-output
+	}
+
+	chain DOCKER-FORWARD {
+		counter packets 11924591 bytes 47686310947 jump DOCKER-CT
+		counter packets 9589184 bytes 47026609618 jump DOCKER-INTERNAL
+		counter packets 9589184 bytes 47026609618 jump DOCKER-BRIDGE
+		iifname "br-0d3c6559213f" counter packets 251208 bytes 211587466 accept
+		iifname "br-776625e9ce27" counter packets 5988 bytes 1780803 accept
+		iifname "br-7ffa61220a44" counter packets 2391 bytes 178946 accept
+		iifname "docker0" counter packets 0 bytes 0 accept
+		iifname "br-8da586916e3f" counter packets 7663 bytes 2627854 accept
+		iifname "br-ffcfd71949cd" counter packets 8603670 bytes 46538536852 accept
+	}
+
+	chain DOCKER-USER {
+	}
+
+	chain LIBVIRT_FWI {
+		oifname "virbr10" counter packets 0 bytes 0 reject
+		oifname "virbr11" counter packets 0 bytes 0 reject
+		ip daddr 192.168.122.0/24 oifname "virbr0" ct state related,established counter packets 323553 bytes 208645575 accept
+		oifname "virbr0" counter packets 0 bytes 0 reject
+		oifname "virbr11" counter packets 0 bytes 0 reject
+		ip daddr 192.168.122.0/24 oifname "virbr0" ct state related,established counter packets 0 bytes 0 accept
+		oifname "virbr0" counter packets 0 bytes 0 reject
+		oifname "virbr10" counter packets 0 bytes 0 reject
+	}
+
+	chain LIBVIRT_FWO {
+		iifname "virbr10" counter packets 0 bytes 0 reject
+		iifname "virbr11" counter packets 0 bytes 0 reject
+		ip saddr 192.168.122.0/24 iifname "virbr0" counter packets 391174 bytes 50754888 accept
+		iifname "virbr0" counter packets 0 bytes 0 reject
+		iifname "virbr11" counter packets 0 bytes 0 reject
+		ip saddr 192.168.122.0/24 iifname "virbr0" counter packets 0 bytes 0 accept
+		iifname "virbr0" counter packets 0 bytes 0 reject
+		iifname "virbr10" counter packets 0 bytes 0 reject
+	}
+
+	chain LIBVIRT_FWX {
+		iifname "virbr10" oifname "virbr10" counter packets 0 bytes 0 accept
+		iifname "virbr11" oifname "virbr11" counter packets 0 bytes 0 accept
+		iifname "virbr0" oifname "virbr0" counter packets 0 bytes 0 accept
+		iifname "virbr11" oifname "virbr11" counter packets 0 bytes 0 accept
+		iifname "virbr0" oifname "virbr0" counter packets 0 bytes 0 accept
+		iifname "virbr10" oifname "virbr10" counter packets 0 bytes 0 accept
+	}
+
+	chain LIBVIRT_INP {
+		iifname "virbr10" udp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr10" tcp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr10" udp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr10" tcp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr11" udp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr11" tcp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr11" udp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr11" tcp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr0" udp dport 53 counter packets 161 bytes 10993 accept
+		iifname "virbr0" tcp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr0" udp dport 67 counter packets 104 bytes 34112 accept
+		iifname "virbr0" tcp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr11" udp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr11" tcp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr11" udp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr11" tcp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr0" udp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr0" tcp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr0" udp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr0" tcp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr10" udp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr10" tcp dport 53 counter packets 0 bytes 0 accept
+		iifname "virbr10" udp dport 67 counter packets 0 bytes 0 accept
+		iifname "virbr10" tcp dport 67 counter packets 0 bytes 0 accept
+	}
+
+	chain LIBVIRT_OUT {
+		oifname "virbr10" udp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr10" tcp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr10" udp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr10" tcp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr11" udp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr11" tcp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr11" udp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr11" tcp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr0" udp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr0" tcp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr0" udp dport 68 counter packets 104 bytes 34320 accept
+		oifname "virbr0" tcp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr11" udp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr11" tcp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr11" udp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr11" tcp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr0" udp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr0" tcp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr0" udp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr0" tcp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr10" udp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr10" tcp dport 53 counter packets 0 bytes 0 accept
+		oifname "virbr10" udp dport 68 counter packets 0 bytes 0 accept
+		oifname "virbr10" tcp dport 68 counter packets 0 bytes 0 accept
+	}
+
+	chain ufw-after-forward {
+	}
+
+	chain ufw-after-input {
+	}
+
+	chain ufw-after-logging-forward {
+	}
+
+	chain ufw-after-logging-input {
+	}
+
+	chain ufw-after-logging-output {
+	}
+
+	chain ufw-after-output {
+	}
+
+	chain ufw-before-forward {
+	}
+
+	chain ufw-before-input {
+	}
+
+	chain ufw-before-logging-forward {
+	}
+
+	chain ufw-before-logging-input {
+	}
+
+	chain ufw-before-logging-output {
+	}
+
+	chain ufw-before-output {
+	}
+
+	chain ufw-reject-forward {
+	}
+
+	chain ufw-reject-input {
+	}
+
+	chain ufw-reject-output {
+	}
+
+	chain ufw-track-forward {
+	}
+
+	chain ufw-track-input {
+	}
+
+	chain ufw-track-output {
+	}
+
+	chain DOCKER {
+		ip daddr 172.22.0.2 iifname != "br-ffcfd71949cd" oifname "br-ffcfd71949cd" tcp dport 8096 counter packets 379 bytes 21804 accept
+		ip daddr 172.20.0.2 iifname != "br-8da586916e3f" oifname "br-8da586916e3f" tcp dport 80 counter packets 119 bytes 6748 accept
+		ip daddr 172.20.0.2 iifname != "br-8da586916e3f" oifname "br-8da586916e3f" udp dport 53 counter packets 0 bytes 0 accept
+		ip daddr 172.20.0.2 iifname != "br-8da586916e3f" oifname "br-8da586916e3f" tcp dport 53 counter packets 0 bytes 0 accept
+		ip daddr 172.19.0.4 iifname != "br-0d3c6559213f" oifname "br-0d3c6559213f" tcp dport 3000 counter packets 195 bytes 10140 accept
+		ip daddr 172.19.0.3 iifname != "br-0d3c6559213f" oifname "br-0d3c6559213f" tcp dport 9090 counter packets 0 bytes 0 accept
+		ip daddr 172.21.0.2 iifname != "br-776625e9ce27" oifname "br-776625e9ce27" tcp dport 3001 counter packets 13 bytes 676 accept
+		ip daddr 172.19.0.2 iifname != "br-0d3c6559213f" oifname "br-0d3c6559213f" tcp dport 9177 counter packets 0 bytes 0 accept
+		ip daddr 172.18.0.2 iifname != "br-7ffa61220a44" oifname "br-7ffa61220a44" tcp dport 443 counter packets 0 bytes 0 accept
+		ip daddr 172.18.0.2 iifname != "br-7ffa61220a44" oifname "br-7ffa61220a44" tcp dport 81 counter packets 5 bytes 260 accept
+		ip daddr 172.18.0.2 iifname != "br-7ffa61220a44" oifname "br-7ffa61220a44" tcp dport 80 counter packets 1 bytes 52 accept
+		iifname != "br-0d3c6559213f" oifname "br-0d3c6559213f" counter packets 0 bytes 0 drop
+		iifname != "br-776625e9ce27" oifname "br-776625e9ce27" counter packets 0 bytes 0 drop
+		iifname != "br-7ffa61220a44" oifname "br-7ffa61220a44" counter packets 0 bytes 0 drop
+		iifname != "docker0" oifname "docker0" counter packets 0 bytes 0 drop
+		iifname != "br-8da586916e3f" oifname "br-8da586916e3f" counter packets 0 bytes 0 drop
+		iifname != "br-ffcfd71949cd" oifname "br-ffcfd71949cd" counter packets 0 bytes 0 drop
+	}
+
+	chain DOCKER-BRIDGE {
+		oifname "br-0d3c6559213f" counter packets 195 bytes 10140 jump DOCKER
+		oifname "br-776625e9ce27" counter packets 13 bytes 676 jump DOCKER
+		oifname "br-7ffa61220a44" counter packets 6 bytes 312 jump DOCKER
+		oifname "docker0" counter packets 0 bytes 0 jump DOCKER
+		oifname "br-8da586916e3f" counter packets 119 bytes 6748 jump DOCKER
+		oifname "br-ffcfd71949cd" counter packets 379 bytes 21804 jump DOCKER
+	}
+
+	chain DOCKER-CT {
+		oifname "br-0d3c6559213f" ct state related,established counter packets 174811 bytes 207640489 accept
+		oifname "br-776625e9ce27" ct state related,established counter packets 2431 bytes 129358 accept
+		oifname "br-7ffa61220a44" ct state related,established counter packets 4669 bytes 19498479 accept
+		oifname "docker0" ct state related,established counter packets 0 bytes 0 accept
+		oifname "br-8da586916e3f" ct state related,established counter packets 8695 bytes 3666567 accept
+		oifname "br-ffcfd71949cd" ct state related,established counter packets 2141683 bytes 427662489 accept
+	}
+
+	chain DOCKER-INTERNAL {
+	}
+
+	chain ts-input {
+		ip saddr 100.64.113.70 iifname "lo" counter packets 1524 bytes 97452 accept
+		iifname "tailscale0" counter packets 1621 bytes 115855 accept
+		udp dport 41641 counter packets 40890 bytes 5524270 accept
+		ip saddr 100.115.92.0/23 iifname != "tailscale0" counter packets 0 bytes 0 return
+		ip saddr 100.64.0.0/10 iifname != "tailscale0" counter packets 0 bytes 0 drop
+	}
+
+	chain ts-forward {
+		iifname "tailscale0" counter packets 7234 bytes 528856 meta mark set mark and 0xff00ffff xor 0x40000
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 7234 bytes 528856 accept
+		ip saddr 100.64.0.0/10 oifname "tailscale0" counter packets 0 bytes 0 drop
+		oifname "tailscale0" counter packets 7148 bytes 1352988 accept
+	}
+}
+table ip nat {
+	chain PREROUTING {
+		type nat hook prerouting priority dstnat; policy accept;
+		iifname "wlp40s0" udp dport 16261-16262 counter packets 0 bytes 0 dnat to 192.168.122.24:16261-16262
+		iifname "wlp40s0" tcp dport 25565 counter packets 0 bytes 0 dnat to 192.168.122.24:25565
+		fib daddr type local counter packets 16467 bytes 1378987 jump DOCKER
+	}
+
+	chain INPUT {
+		type nat hook input priority srcnat; policy accept;
+	}
+
+	chain OUTPUT {
+		type nat hook output priority dstnat; policy accept;
+		ip daddr != 127.0.0.0/8 fib daddr type local counter packets 4602 bytes 290541 jump DOCKER
+	}
+
+	chain POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		ip saddr 172.22.0.0/16 oifname != "br-ffcfd71949cd" counter packets 166 bytes 9960 masquerade
+		ip saddr 172.20.0.0/16 oifname != "br-8da586916e3f" counter packets 5261 bytes 415726 masquerade
+		counter packets 135688 bytes 8403582 jump ts-postrouting
+		ip saddr 172.17.0.0/16 oifname != "docker0" counter packets 0 bytes 0 masquerade
+		ip saddr 172.18.0.0/16 oifname != "br-7ffa61220a44" counter packets 96 bytes 5760 masquerade
+		ip saddr 172.21.0.0/16 oifname != "br-776625e9ce27" counter packets 0 bytes 0 masquerade
+		ip saddr 172.19.0.0/16 oifname != "br-0d3c6559213f" counter packets 288 bytes 17280 masquerade
+		counter packets 133286 bytes 8223162 jump LIBVIRT_PRT
+	}
+
+	chain LIBVIRT_PRT {
+		ip saddr 192.168.122.0/24 ip daddr 224.0.0.0/24 counter packets 1 bytes 40 return
+		ip saddr 192.168.122.0/24 ip daddr 255.255.255.255 counter packets 0 bytes 0 return
+		ip saddr 192.168.122.0/24 ip daddr != 192.168.122.0/24 ip protocol tcp counter packets 28731 bytes 1733140 masquerade to :1024-65535
+		ip saddr 192.168.122.0/24 ip daddr != 192.168.122.0/24 ip protocol udp counter packets 2175 bytes 163968 masquerade to :1024-65535
+		ip saddr 192.168.122.0/24 ip daddr != 192.168.122.0/24 counter packets 0 bytes 0 masquerade
+		ip saddr 192.168.122.0/24 ip daddr 224.0.0.0/24 counter packets 0 bytes 0 return
+		ip saddr 192.168.122.0/24 ip daddr 255.255.255.255 counter packets 0 bytes 0 return
+		ip saddr 192.168.122.0/24 ip daddr != 192.168.122.0/24 ip protocol tcp counter packets 0 bytes 0 masquerade to :1024-65535
+		ip saddr 192.168.122.0/24 ip daddr != 192.168.122.0/24 ip protocol udp counter packets 0 bytes 0 masquerade to :1024-65535
+		ip saddr 192.168.122.0/24 ip daddr != 192.168.122.0/24 counter packets 0 bytes 0 masquerade
+	}
+
+	chain DOCKER {
+		iifname != "br-7ffa61220a44" tcp dport 80 counter packets 7 bytes 364 dnat to 172.18.0.2:80
+		iifname != "br-7ffa61220a44" tcp dport 81 counter packets 12 bytes 624 dnat to 172.18.0.2:81
+		iifname != "br-7ffa61220a44" tcp dport 443 counter packets 0 bytes 0 dnat to 172.18.0.2:443
+		iifname != "br-0d3c6559213f" tcp dport 9177 counter packets 0 bytes 0 dnat to 172.19.0.2:9177
+		iifname != "br-776625e9ce27" tcp dport 3001 counter packets 13 bytes 676 dnat to 172.21.0.2:3001
+		iifname != "br-0d3c6559213f" tcp dport 9091 counter packets 0 bytes 0 dnat to 172.19.0.3:9090
+		iifname != "br-0d3c6559213f" tcp dport 3000 counter packets 195 bytes 10140 dnat to 172.19.0.4:3000
+		ip daddr 100.64.113.70 iifname != "br-8da586916e3f" tcp dport 53 counter packets 112 bytes 5920 dnat to 172.20.0.2:53
+		ip daddr 192.168.4.80 iifname != "br-8da586916e3f" tcp dport 53 counter packets 0 bytes 0 dnat to 172.20.0.2:53
+		ip daddr 100.64.113.70 iifname != "br-8da586916e3f" udp dport 53 counter packets 7392 bytes 506234 dnat to 172.20.0.2:53
+		ip daddr 192.168.4.80 iifname != "br-8da586916e3f" udp dport 53 counter packets 0 bytes 0 dnat to 172.20.0.2:53
+		ip daddr 192.168.4.80 iifname != "br-8da586916e3f" tcp dport 8081 counter packets 119 bytes 6748 dnat to 172.20.0.2:80
+		ip daddr 192.168.4.80 iifname != "br-ffcfd71949cd" tcp dport 8096 counter packets 379 bytes 21804 dnat to 172.22.0.2:8096
+	}
+
+	chain ts-postrouting {
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 6551 bytes 449403 masquerade
+	}
+}
+table ip6 mangle {
+	chain PREROUTING {
+		type filter hook prerouting priority mangle; policy accept;
+		ct state related,established ct mark and 0xff0000 != 0x0 counter packets 26291 bytes 2859781 meta mark set ct mark and 0xff0000
+	}
+
+	chain INPUT {
+		type filter hook input priority mangle; policy accept;
+	}
+
+	chain FORWARD {
+		type filter hook forward priority mangle; policy accept;
+	}
+
+	chain OUTPUT {
+		type route hook output priority mangle; policy accept;
+		ct state new meta mark & 0x00ff0000 != 0x00000000 counter packets 6224 bytes 548857 ct mark set mark and 0xff0000
+	}
+
+	chain POSTROUTING {
+		type filter hook postrouting priority mangle; policy accept;
+		counter packets 61147 bytes 7911693 jump LIBVIRT_PRT
+	}
+
+	chain LIBVIRT_PRT {
+	}
+}
+table ip6 filter {
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		counter packets 73165 bytes 137105814 jump ts-input
+		counter packets 63054 bytes 136159879 jump LIBVIRT_INP
+		counter packets 63054 bytes 136159879 jump ufw6-before-logging-input
+		counter packets 63054 bytes 136159879 jump ufw6-before-input
+		counter packets 63054 bytes 136159879 jump ufw6-after-input
+		counter packets 63054 bytes 136159879 jump ufw6-after-logging-input
+		counter packets 63054 bytes 136159879 jump ufw6-reject-input
+		counter packets 63054 bytes 136159879 jump ufw6-track-input
+	}
+
+	chain FORWARD {
+		type filter hook forward priority filter; policy accept;
+		counter packets 21 bytes 1512 jump ts-forward
+		counter packets 113 bytes 41743 jump DOCKER-USER
+		counter packets 113 bytes 41743 jump DOCKER-FORWARD
+		counter packets 6 bytes 432 jump LIBVIRT_FWX
+		counter packets 6 bytes 432 jump LIBVIRT_FWI
+		counter packets 6 bytes 432 jump LIBVIRT_FWO
+		counter packets 6 bytes 432 jump ufw6-before-logging-forward
+		counter packets 6 bytes 432 jump ufw6-before-forward
+		counter packets 6 bytes 432 jump ufw6-after-forward
+		counter packets 6 bytes 432 jump ufw6-after-logging-forward
+		counter packets 6 bytes 432 jump ufw6-reject-forward
+		counter packets 6 bytes 432 jump ufw6-track-forward
+	}
+
+	chain OUTPUT {
+		type filter hook output priority filter; policy accept;
+		counter packets 60971 bytes 7866566 jump LIBVIRT_OUT
+		counter packets 60971 bytes 7866566 jump ufw6-before-logging-output
+		counter packets 60971 bytes 7866566 jump ufw6-before-output
+		counter packets 60971 bytes 7866566 jump ufw6-after-output
+		counter packets 60971 bytes 7866566 jump ufw6-after-logging-output
+		counter packets 60971 bytes 7866566 jump ufw6-reject-output
+		counter packets 60971 bytes 7866566 jump ufw6-track-output
+	}
+
+	chain DOCKER-FORWARD {
+		counter packets 113 bytes 41743 jump DOCKER-CT
+		counter packets 113 bytes 41743 jump DOCKER-INTERNAL
+		counter packets 113 bytes 41743 jump DOCKER-BRIDGE
+	}
+
+	chain DOCKER-USER {
+	}
+
+	chain LIBVIRT_FWI {
+	}
+
+	chain LIBVIRT_FWO {
+	}
+
+	chain LIBVIRT_FWX {
+	}
+
+	chain LIBVIRT_INP {
+	}
+
+	chain LIBVIRT_OUT {
+	}
+
+	chain ufw6-after-forward {
+	}
+
+	chain ufw6-after-input {
+	}
+
+	chain ufw6-after-logging-forward {
+	}
+
+	chain ufw6-after-logging-input {
+	}
+
+	chain ufw6-after-logging-output {
+	}
+
+	chain ufw6-after-output {
+	}
+
+	chain ufw6-before-forward {
+	}
+
+	chain ufw6-before-input {
+	}
+
+	chain ufw6-before-logging-forward {
+	}
+
+	chain ufw6-before-logging-input {
+	}
+
+	chain ufw6-before-logging-output {
+	}
+
+	chain ufw6-before-output {
+	}
+
+	chain ufw6-reject-forward {
+	}
+
+	chain ufw6-reject-input {
+	}
+
+	chain ufw6-reject-output {
+	}
+
+	chain ufw6-track-forward {
+	}
+
+	chain ufw6-track-input {
+	}
+
+	chain ufw6-track-output {
+	}
+
+	chain DOCKER {
+	}
+
+	chain DOCKER-BRIDGE {
+	}
+
+	chain DOCKER-CT {
+	}
+
+	chain DOCKER-INTERNAL {
+	}
+
+	chain ts-input {
+		ip6 saddr fd7a:115c:a1e0::d35:7147 iifname "lo" counter packets 0 bytes 0 accept
+		iifname "tailscale0" counter packets 714 bytes 104972 accept
+		udp dport 41641 counter packets 9623 bytes 885404 accept
+	}
+
+	chain ts-forward {
+		iifname "tailscale0" counter packets 3 bytes 216 meta mark set mark and 0xff00ffff xor 0x40000
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 3 bytes 216 accept
+		oifname "tailscale0" counter packets 12 bytes 864 accept
+	}
+}
+table ip6 nat {
+	chain PREROUTING {
+		type nat hook prerouting priority dstnat; policy accept;
+		fib daddr type local counter packets 0 bytes 0 jump DOCKER
+	}
+
+	chain INPUT {
+		type nat hook input priority srcnat; policy accept;
+	}
+
+	chain OUTPUT {
+		type nat hook output priority dstnat; policy accept;
+		ip6 daddr != ::1 fib daddr type local counter packets 0 bytes 0 jump DOCKER
+	}
+
+	chain POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		counter packets 7066 bytes 635815 jump ts-postrouting
+		counter packets 7893 bytes 707247 jump LIBVIRT_PRT
+	}
+
+	chain LIBVIRT_PRT {
+	}
+
+	chain DOCKER {
+	}
+
+	chain ts-postrouting {
+		meta mark & 0x00ff0000 == 0x00040000 counter packets 3 bytes 216 xt target "MASQUERADE"
+	}
+}
