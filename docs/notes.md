@@ -1,5 +1,13 @@
-THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
-(lean version — see homelab-network-topology.txt V2 for full detail)
+THOMASHOMESERV — QUICK REFERENCE GUIDE (V6)
+(lean version — see homelab-network-topology-V4.txt for full detail)
+
+V6 changes (2026-09-27): Raspberry Pi (thomasPi) unplugged/retired; Vaultwarden
+deployed and fronted by NPM with a Tailscale-issued cert; Uptime Kuma added as an NPM
+proxy host; NPM proxy host list corrected to match the live UI; duplicate Pi-hole
+resolved by retiring the Pi. Items marked TO CONFIRM were not verified when this was
+written.
+Also added: first SMART self-test results (short + extended, both passed) and the
+game-server NAT port-forward detail (-> 192.168.110.10) that had dropped out of the docs.
 
 
 1. HARDWARE & ROLE
@@ -25,7 +33,7 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         proprietary nvidia), idle temp ~25°C. Cannot meaningfully hardware-transcode
         video (confirmed via Jellyfin Direct Play testing — see section 3)
     Role: KVM/libvirt hypervisor host + Docker host (NPM, monitoring stack, Jellyfin,
-        Samba, and now also Pi-hole — see section 3 note)
+        Samba, Pi-hole, Vaultwarden, Uptime Kuma — see section 3)
     Wired NIC: enp34s0 (onboard Realtek RTL8111/8168/8211/8411) — down/unplugged, no
         Ethernet run planned (server is upstairs). NOTE: leaving this NIC down is
         currently causing two boot-time issues — see section 8.
@@ -52,6 +60,9 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         Tailscale IP: 100.64.113.70
         Advertised as an exit node (replaced thomasPi in this role — Pi's Wi-Fi was
         unreliable)
+        Tailnet DNS name: thomashomeserv.tail866efc.ts.net (MagicDNS + HTTPS
+        certificates enabled in the Tailscale admin console — used for the Vaultwarden
+        HTTPS URL, see section 3)
         Reach it from anywhere on the tailnet via this IP (or hostname, once MagicDNS
         is confirmed working)
 
@@ -67,14 +78,15 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         jellyfin           — jellyfin/jellyfin:latest, 192.168.4.80:8096->8096
         pihole              — pihole/pihole:latest, DNS on :53 (both LAN IP and
                               Tailscale IP), web UI 192.168.4.80:8081->80
-                              *** NEW/NOTABLE: Pi-hole is now ALSO running directly on
-                              thomashomeserv, in addition to the existing instance on
-                              thomasPi (192.168.4.71:8053). Not yet clear whether this
-                              is a deliberate second instance, a migration in progress,
-                              or a leftover test deployment — worth deciding which one
-                              is authoritative and pointing DHCP/clients accordingly to
-                              avoid split-brain DNS blocking. ***
+                              (Pi-hole on thomasPi went offline with the Pi — unplugged
+                              2026-09-27 — so this is now the only running instance.
+                              It is NOT the router/DHCP DNS server: LAN devices keep
+                              their normal DNS; Pi-hole is only used by devices while
+                              connected to Tailscale.)
         uptime-kuma         — louislam/uptime-kuma:2, 0.0.0.0:3001
+        vaultwarden         — vaultwarden/server:latest, 0.0.0.0:11001->80/tcp (also
+                              [::]:11001), restart: always, compose in ~/vw-data (see
+                              Vaultwarden section below)
         prometheus          — prom/prometheus:latest, 0.0.0.0:9091->9090
         grafana             — grafana/grafana:latest, 0.0.0.0:3000
         libvirt-exporter    — ghcr.io/inovex/prometheus-libvirt-exporter:v2.5.0, :9177
@@ -104,6 +116,8 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         npm_default         (br-7ffa61220a44)  172.18.0.0/16
         pihole_default      (br-8da586916e3f)  172.20.0.0/16
         uptime-kuma_default (br-776625e9ce27)  172.21.0.0/16
+        vaultwarden network — TO CONFIRM (compose project dir is vw-data; capture the
+                              bridge name/subnet with `docker network ls` + `ip -br a`)
         docker0 (default bridge)               172.17.0.0/16 — unused/down
 
     Docker cleanup opportunity: `docker system df` shows 10.01GB of images with 9.29GB
@@ -115,15 +129,25 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         Container: npm-app
         Location: ~/npm (docker-compose.yml, ./data, ./letsencrypt)
         Admin UI: http://192.168.4.80:81
-        Proxy hosts configured (all *.100.64.113.70.nip.io):
-            cloud   -> 192.168.4.71:8080  (FileBrowser, on thomasPi)
-            dns     -> 192.168.4.71:8053  (Pi-hole, on thomasPi)
-            monitor -> 192.168.4.71:8090  (Beszel, on thomasPi)
-            opnsense -> https://192.168.100.1:443 (OPNsense web UI — see section 4)
-            grafana  -> http://192.168.4.80:3000 (Grafana, on thomashomeserv itself)
-        NOTE: all proxy hosts are set to "Publicly Accessible" (no auth layer) — fine
-        for services with their own logins, but the opnsense host in particular is a
+        Proxy hosts configured (verified against the NPM UI, 2026-09-27):
+            cloud    -> http://192.168.4.71:8080  (FileBrowser, on thomasPi — DEAD, Pi
+                        unplugged; left in NPM in case the Pi is ever reused)
+            dns      -> http://192.168.4.80:8081  (Pi-hole on thomashomeserv — repointed
+                        from the Pi's instance)
+            grafana  -> http://192.168.4.80:3000  (Grafana, on thomashomeserv)
+            monitor  -> http://192.168.4.71:8090  (Beszel, on thomasPi — DEAD, same reason)
+            opnsense -> https://192.168.100.1:443 (OPNsense web UI — see section 4;
+                        Custom Certificate)
+            (cloud/dns/grafana/monitor/opnsense are *.100.64.113.70.nip.io hosts)
+            thomashomeserv.tail866efc.ts.net -> http://192.168.4.80:11001
+                        (Vaultwarden; Custom Certificate — see Vaultwarden section)
+            uptime.192.168.4.80.nip.io -> http://192.168.4.80:3001 (Uptime Kuma, HTTP only;
+                        Websockets Support must stay on or the dashboard won't live-update)
+        NOTE: all proxy hosts are set to "Public" access (no NPM-level auth) — fine for
+        services with their own logins, but the opnsense host in particular is a
         higher-value target and has no additional auth in front of it. Worth revisiting.
+        NOTE: NPM (npm-app) owns host ports 80/81/443. TO CONFIRM that Tailscale Serve is
+        not also configured for 443 (`sudo tailscale serve status` should be empty).
 
     Jellyfin (media server)
         Library: on the WD Blue 1TB HDD — see section 5 for the confirmed mount path
@@ -133,6 +157,27 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         client-compatible for Direct Play matters on this box
         NOTE: not yet added as an NPM proxy host — currently accessed directly by
         IP:port (192.168.4.80:8096)
+
+    Vaultwarden (password manager) — deployed 2026-09-24
+        Container: vaultwarden (vaultwarden/server:latest), restart: always, published
+        0.0.0.0:11001 -> container port 80 (plain HTTP)
+        Compose: ~/vw-data/docker-compose.yml (root-owned — edit with sudo). Data:
+        ~/vw-data/vw-data (SQLite DB + keys) — NOT backed up yet.
+        Access: https://thomashomeserv.tail866efc.ts.net — served by NPM (proxy host with a
+        Custom Certificate made by `sudo tailscale cert`, forwarding to
+        http://192.168.4.80:11001). The name resolves via MagicDNS, so it works from
+        devices on the tailnet.
+        Why HTTPS is required: the web vault needs a secure context (Web Crypto API).
+        Plain http://192.168.4.80:11001 loads the page but shows "You are not using a
+        secure context...", and https:// pointed straight at :11001 fails with
+        SSL_ERROR_RX_RECORD_TOO_LONG because that port only speaks HTTP.
+        Cert renewal: Tailscale certs last ~90 days and are NOT renewed automatically in
+        NPM — rerun `sudo tailscale cert thomashomeserv.tail866efc.ts.net` and replace the
+        cert under NPM > SSL Certificates. First issued ~2026-09-27; remind ~2026-12-10.
+        Clients: Bitwarden browser extension (desktop) uses the HTTPS URL. Phone app setup
+        is pending (Tailscale app must be connected; server URL set to the HTTPS name).
+        TO CONFIRM: `DOMAIN` is set in compose to the HTTPS URL, and
+        SIGNUPS_ALLOWED="false" after account creation.
 
     Samba
         smbd running directly on the host (systemd service, not containerized) —
@@ -165,6 +210,10 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         Monitoring thomashomeserv via ICMP ping to 192.168.4.80, 60s interval
         Covers latency/uptime history; does NOT capture Wi-Fi signal/link-rate data
         (that gap is what the custom textfile-collector metrics above fill)
+        Version: 2.5.x (uptime-kuma@2.5.5 per the reset-password tool output). Also
+        reachable via NPM at http://uptime.192.168.4.80.nip.io. Admin password was reset
+        2026-09-27 with (run on the SERVER, not the Windows PC):
+            docker exec -it uptime-kuma npm run reset-password
 
     Performance Co-Pilot (pmcd, pmie, pmlogger, pmproxy) — CONFIRMED RUNNING, not
     previously documented. A separate host-level metrics/logging suite alongside
@@ -247,9 +296,20 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         Overall health: PASSED. Reallocated_Sector_Ct=0, Current_Pending_Sector=0,
         Offline_Uncorrectable=0, SMART error log empty, temperature 28°C. The drive has
         36,079 power-on hours (~4.1 years) and UDMA_CRC_Error_Count=10; treat that CRC
-        count as a baseline and investigate only if it increases. No SMART self-tests
-        logged yet. Recommended test cadence: short test monthly, extended test during
-        an idle maintenance window (reported duration ~119 minutes).
+        count as a baseline and investigate only if it increases. First self-tests
+        since then: see below. Recommended cadence: short test monthly, extended test
+        during an idle maintenance window (reported duration ~119 minutes).
+
+    SMART self-tests (first ever run; ~2026-09-28 — date inferred from the power-on-hours
+        counter): short test COMPLETED WITHOUT ERROR at 36,202 h; extended test COMPLETED
+        WITHOUT ERROR at 36,204 h (full-surface read, no LBA errors). Attributes re-read at
+        36,217 h are unchanged from the baseline: reallocated 0, pending 0, uncorrectable
+        0, UDMA_CRC 10, temperature 28°C, power cycles 2,793. Commands:
+            sudo smartctl -t short /dev/sda      (~2 min)
+            sudo smartctl -t long /dev/sda       (~119 min; do not reboot during it)
+            sudo smartctl -l selftest /dev/sda   (results)
+            sudo smartctl -A /dev/sda            (attributes)
+        Scheduled tests via smartd: not set up as of this update (optional).
 
 
 6. WI-FI — DIAGNOSIS & CURRENT STATE (Sept 2026)
@@ -318,10 +378,17 @@ THOMASHOMESERV — QUICK REFERENCE GUIDE (V5)
         sudo nft list table inet homelab_host
         sudo systemctl status homelab-host-firewall.service --no-pager
 
+    Docker-published ports and this firewall: the allowlist above is for host-bound
+    (INPUT) traffic. Docker's published ports are handled by Docker's own NAT/FORWARD
+    rules. Evidence: http://192.168.4.80:11001 (Vaultwarden) loaded from the desktop even
+    though 11001 is not in the LAN allowlist. Narrowing broad port bindings is therefore a
+    separate hardening task (see section 8).
+
     Confirmed game-server DNAT path (matches documented plan): host iptables FORWARD
     chain ACCEPTs tcp dpt:25565 and udp dpts:16261:16262 destined for 192.168.122.24
-    (OPNsense's WAN-side IP on virbr0) — from there OPNsense's own NAT/firewall rules
-    hand off to the GAMES segment.
+    (OPNsense's WAN-side IP on virbr0) — from there OPNsense's NAT port forward (WAN
+    25565/tcp and 16261-16262/udp -> 192.168.110.10) and the GAMES firewall rules hand off
+    to the game-servers VM.
 
 
 8. OPEN ITEMS / TO DO
@@ -349,16 +416,29 @@ previously tracked:
     functional problem, noted for awareness only.
 
 Storage / backups
-  - SMART baseline: DONE 2026-09-22 — continue periodic short/extended tests and track
-    any increase in UDMA_CRC_Error_Count (baseline 10).
-  - No backup strategy yet for the Jellyfin media library or VM images/configs
+  - SMART: baseline 2026-09-22; first short + extended self-tests PASSED (~2026-09-28),
+    attributes unchanged. Continue periodic tests (consider smartd) and track any increase
+    in UDMA_CRC_Error_Count (baseline 10).
+  - No backup strategy yet for the Jellyfin media library, VM images/configs, or
+    Vaultwarden data (~/vw-data/vw-data)
   - Docker image/volume cleanup available: 9.29GB reclaimable images, 7.26GB
     reclaimable anonymous volumes
 
 Infrastructure
-  - Resolve the duplicate Pi-hole situation: instances now exist on both thomasPi
-    (192.168.4.71:8053) and thomashomeserv (192.168.4.80:8081, port 53) — decide which
-    is authoritative and update DHCP/NPM proxy accordingly
+  - Pi-hole: RESOLVED by retiring the Pi — thomashomeserv (192.168.4.80:53, UI :8081) is
+    the only instance and the NPM `dns` host is already repointed. By design it is NOT the
+    router/DHCP DNS; it is only used when devices are connected to Tailscale.
+  - Retired Pi: the `cloud` and `monitor` NPM hosts still point at it and are dead —
+    disable or delete them (kept for now in case the Pi is reused). Remove thomasPi
+    monitors from Uptime Kuma if any exist.
+  - Vaultwarden TLS cert (Tailscale-issued, ~90-day validity, first issued ~2026-09-27):
+    renew manually — see Vaultwarden section. Reminder for ~2026-12-10.
+  - Vaultwarden: confirm DOMAIN + SIGNUPS_ALLOWED in ~/vw-data/docker-compose.yml; back up
+    ~/vw-data/vw-data and keep periodic encrypted vault exports OFF the server.
+  - Broad port bindings (0.0.0.0:11001, 3001, 3000, 9091, ...): narrowing is a hardening
+    goal, but NPM forwards to 192.168.4.80:<port>, so binding a container to 127.0.0.1
+    would break the proxy path — use a shared Docker network with container-name
+    upstreams instead.
   - Host firewall: DONE — persistent host-only nftables INPUT policy implemented and
     reboot-validated; continue narrowing service bindings and later reduce the LAN
     allowlist as ports become unnecessary.
@@ -388,8 +468,10 @@ Phase 6 — Honeypot / Threat Intel
   - Feed honeypot logs into the SIEM
 
 Phase 7 — Extras / Nice-to-haves
-  - Vaultwarden (centralize password management across Pi + new server)
-  - Uptime Kuma: DONE — still worth extending to game servers and thomasPi's services
+  - Vaultwarden: DONE — deployed on thomashomeserv, HTTPS via NPM; desktop extension
+    configured, phone app in progress; remaining: backups, DOMAIN/SIGNUPS check
+  - Uptime Kuma: DONE (also proxied via NPM) — still worth extending to game servers,
+    Vaultwarden, and Pi-hole; thomasPi is retired
   - Power monitoring (smart plug or Kill-A-Watt)
   - Reverse proxy: DONE — NPM migrated from thomasPi to thomashomeserv
   - Decide on auth layer for the opnsense NPM proxy host (currently unauthenticated)
