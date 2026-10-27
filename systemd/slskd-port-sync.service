@@ -1,0 +1,7 @@
+[Unit]
+Description=Sync slskd listen_port with the Proton forwarded port
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/slskd-port-sync.sh

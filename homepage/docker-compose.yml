@@ -1,0 +1,26 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    ports:
+      - "3002:3000"
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "192.168.4.80:3002,100.64.113.70:3002"
+    volumes:
+      - ./config:/app/config
+      - ./images:/app/public/images
+      - /mnt/hdd:/mnt/hdd:ro
+    depends_on:
+      - socket-proxy
+    restart: unless-stopped
+
+  # Read-only gateway so Homepage can see containers but not control them
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: socket-proxy
+    environment:
+      CONTAINERS: "1"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped

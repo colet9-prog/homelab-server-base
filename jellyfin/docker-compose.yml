@@ -1,0 +1,16 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    user: "1000:1000"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      # Media library on the HDD (also shared over Samba to the Windows PCs)
+      # box that already owns the share.
+      - /mnt/hdd/media:/media
+    ports:
+      - "192.168.4.80:8096:8096/tcp"
+    restart: unless-stopped
+    group_add:
+      - "980"

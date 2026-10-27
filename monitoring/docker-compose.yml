@@ -23,16 +23,19 @@ services:
     container_name: node-exporter
     restart: unless-stopped
     pid: host
-    network_mode: host
+    ports:
+      - "9100:9100"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - /var/lib/node_exporter/textfile:/textfile:ro   # wifi-metrics.sh writes here
     command:
       - '--path.procfs=/host/proc'
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.textfile.directory=/textfile'
 
   libvirt-exporter:
     image: ghcr.io/inovex/prometheus-libvirt-exporter:v2.5.0

@@ -1,0 +1,38 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:v3
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}   # lives in .env, never committed
+      - SERVER_COUNTRIES=united states
+      - PORT_FORWARD_ONLY=on
+      - VPN_PORT_FORWARDING=on
+      - FIREWALL_INPUT_PORTS=5030
+      - FIREWALL_OUTBOUND_SUBNETS=192.168.4.0/22,100.64.0.0/10   # home LAN + Tailscale, so replies to the web UI don't go out the tunnel
+      - TZ=America/New_York
+    ports:
+      - "192.168.4.80:5030:5030"      # slskd web UI on the LAN
+      - "100.64.113.70:5030:5030"     # slskd web UI over Tailscale
+    volumes:
+      - ./gluetun:/gluetun
+    restart: unless-stopped
+
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    user: "1000:980"                   # thomasserver : sambashare, the music folder is group-only
+    network_mode: "service:gluetun"    # no network of its own: if the VPN is down, slskd has no network (kill switch)
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    volumes:
+      - ./app:/app                     # slskd.yml lives here, not committed (holds passwords)
+      - /mnt/hdd/media/music:/music:ro
+      - /mnt/hdd/slskd-downloads:/downloads
+    restart: unless-stopped

@@ -2,6 +2,17 @@ data/
 letsencrypt/
 prometheus-data/
 grafana-data/
+vw-data/
+uptime-kuma-data/
 *.key
 *.crt
 *.pem
+.env
+slskd/app/
+slskd/gluetun/
+jellyfin/config/
+jellyfin/cache/
+pihole/etc-pihole/
+homepage/images/
+ical/www/
+game-servers/pz-data/

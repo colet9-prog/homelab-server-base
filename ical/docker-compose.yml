@@ -1,0 +1,1 @@
+services: {ical: {image: "nginx:alpine", container_name: ical, ports: ["192.168.4.80:8099:80"], volumes: ["/home/thomasserver/ical/www:/usr/share/nginx/html:ro"], restart: unless-stopped}}

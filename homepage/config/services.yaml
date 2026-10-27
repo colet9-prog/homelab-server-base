@@ -1,0 +1,163 @@
+- Media:
+    - Jellyfin:
+        icon: jellyfin.png
+        server: socketproxy
+        container: jellyfin
+        href: "http://192.168.4.80:8096"
+        description: Media server
+        siteMonitor: "http://192.168.4.80:8096"
+        widget:
+          type: jellyfin
+          version: 2
+          url: "http://192.168.4.80:8096"
+          key: "<api key, not committed>"
+          enableBlocks: true
+          enableNowPlaying: true
+    - slskd:
+        icon: mdi-music
+        server: socketproxy
+        container: slskd
+        href: "http://192.168.4.80:5030"
+        description: Soulseek via ProtonVPN
+        siteMonitor: "http://192.168.4.80:5030"
+        widget:
+          type: slskd
+          url: "http://192.168.4.80:5030"
+          key: "<api key, not committed>"
+          fields: ["slskStatus", "downloads", "uploads", "sharedFiles"]
+
+- Monitoring:
+    - Grafana:
+        icon: grafana.png
+        server: socketproxy
+        container: grafana
+        href: "http://192.168.4.80:3000"
+        description: Dashboards
+        siteMonitor: "http://192.168.4.80:3000"
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        server: socketproxy
+        container: uptime-kuma
+        href: "http://192.168.4.80:3001"
+        description: Uptime checks
+        siteMonitor: "http://192.168.4.80:3001"
+        widget:
+          type: uptimekuma
+          url: "http://192.168.4.80:3001"
+          slug: home
+    - Prometheus:
+        icon: prometheus.png
+        server: socketproxy
+        container: prometheus
+        href: "http://192.168.4.80:9091"
+        description: Data collection
+        siteMonitor: "http://192.168.4.80:9091"
+        widget:
+          type: prometheus
+          url: "http://192.168.4.80:9091"
+
+- Network and Security:
+    - Pi-hole:
+        icon: pi-hole.png
+        server: socketproxy
+        container: pihole
+        href: "http://192.168.4.80:8081/admin"
+        description: DNS and ad blocking
+        siteMonitor: "http://192.168.4.80:8081/admin"
+        widget:
+          type: pihole
+          url: "http://192.168.4.80:8081"
+          version: 6
+    - Nginx Proxy Manager:
+        icon: nginx-proxy-manager.png
+        server: socketproxy
+        container: npm-app
+        href: "http://192.168.4.80:81"
+        description: Reverse proxy
+        siteMonitor: "http://192.168.4.80:81"
+
+    - Vaultwarden:
+        icon: vaultwarden.png
+        server: socketproxy
+        container: vaultwarden
+        href: "https://thomashomeserv.tail866efc.ts.net"
+        description: Passwords
+        siteMonitor: "http://192.168.4.80:11001"
+
+- Host and VMs:
+    - thomashomeserv:
+        icon: mdi-server
+        href: "http://192.168.4.80:3000"
+        description: Host system
+        widget:
+          type: customapi
+          url: "http://192.168.4.80:8099/vms.json"
+          refreshInterval: 30000
+          mappings:
+            - field: host.down
+              label: Down
+            - field: host.up
+              label: Up
+            - field: host.load
+              label: Load
+            - field: host.wifi
+              label: Wi-Fi
+    - game-servers VM:
+        icon: mdi-gamepad-variant
+        description: Project Zomboid + Minecraft
+        widget:
+          type: customapi
+          url: "http://192.168.4.80:8099/vms.json"
+          refreshInterval: 30000
+          mappings:
+            - field: game_servers.state
+              label: State
+            - field: game_servers.cpu
+              label: CPU
+            - field: game_servers.mem
+              label: RAM
+    - OPNsense VM:
+        icon: opnsense.png
+        href: "https://opnsense.100.64.113.70.nip.io"
+        description: Firewall
+        widget:
+          type: customapi
+          url: "http://192.168.4.80:8099/vms.json"
+          refreshInterval: 30000
+          mappings:
+            - field: opnsense.state
+              label: State
+            - field: opnsense.cpu
+              label: CPU
+            - field: opnsense.mem
+              label: RAM
+
+- Life:
+    - Spotify:
+        icon: mdi-spotify
+        href: "https://open.spotify.com"
+        description: Music
+    - Canvas:
+        icon: mdi-school
+        href: "https://uc.instructure.com"
+        description: Classes and assignments
+    - Calendar:
+        widget:
+          type: calendar
+          view: agenda
+          maxEvents: 8
+          integrations:
+            - type: ical
+              name: Canvas
+              color: red
+              url: "http://192.168.4.80:8099/canvas.ics"
+
+- Quick Access:
+    - SSH (LAN):
+        icon: mdi-console
+        href: "ssh://thomasserver@192.168.4.80"
+        description: thomasserver@192.168.4.80
+    - SSH (Tailscale):
+        icon: mdi-console-network
+        href: "ssh://thomasserver@100.64.113.70"
+        description: thomasserver@100.64.113.70

@@ -1,0 +1,15 @@
+[Unit]
+Description=Homelab host-only nftables firewall
+Wants=network-pre.target
+Before=network-pre.target docker.service libvirtd.service tailscaled.service
+After=local-fs.target
+ConditionFileNotEmpty=/etc/nftables-homelab-host.nft
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nft -f /etc/nftables-homelab-host.nft
+ExecStop=/usr/sbin/nft delete table inet homelab_host
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

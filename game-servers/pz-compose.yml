@@ -1,0 +1,14 @@
+services:
+  pz-server:
+    image: skytuna/zomboid:latest
+    container_name: pz-server
+    restart: unless-stopped
+    ports:
+      - "16261:16261/udp"
+      - "16262:16262/udp"
+    environment:
+      SERVER_NAME: servertest
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: "${PZ_ADMIN_PASSWORD}"
+    volumes:
+      - /home/thomasserver/pz-data:/home/steam/Zomboid

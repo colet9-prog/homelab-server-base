@@ -1,0 +1,24 @@
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    hostname: pihole
+    ports:
+      # LAN IP bindings
+      - "192.168.4.80:53:53/tcp"
+      - "192.168.4.80:53:53/udp"
+      # Tailscale IP bindings
+      - "100.64.113.70:53:53/tcp"
+      - "100.64.113.70:53:53/udp"
+      # Web UI
+      - "192.168.4.80:8081:80/tcp"
+    environment:
+      TZ: "America/New_York"
+      # Set in .env (see .env.example), not committed
+      FTLCONF_webserver_api_password: "${PIHOLE_PASSWORD}"
+      # Required when using Docker's default bridge network, so Pi-hole
+      # accepts DNS queries from other devices on the LAN, not just itself.
+      FTLCONF_dns_listeningMode: "all"
+    volumes:
+      - "./etc-pihole:/etc/pihole"
+    restart: "no"

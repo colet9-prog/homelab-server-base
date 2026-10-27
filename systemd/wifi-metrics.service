@@ -1,0 +1,7 @@
+[Unit]
+Description=Collect Wi-Fi signal metrics for Prometheus
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wifi-metrics.sh
+
